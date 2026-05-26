@@ -1,0 +1,13 @@
+Easy level:
+
+What is Market Basket Analysis?
+What is the Apriori algorithm?
+What is support, confidence, and lift? Give an example.
+What does a lift value greater than 1 mean?
+
+Medium level:
+
+Why did you choose min_support=0.15?
+What happens if you set support too low or too high?
+What is a TransactionEncoder and why do you need it?
+Difference between support and confidence?
