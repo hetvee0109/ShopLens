@@ -134,7 +134,7 @@ kirana-market-basket/
 
 ## 👤 Author
 
-**Your Name**  
+**Hetvee Rabara**  
 Day 1 of my Data Science learning journey  
 _Started: 26/5/26_
 
