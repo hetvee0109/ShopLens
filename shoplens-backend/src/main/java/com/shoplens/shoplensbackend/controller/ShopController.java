@@ -1,69 +1,78 @@
 package com.shoplens.shoplensbackend.controller;
 
-// Spring annotations
-import org.springframework.web.bind.annotation.CrossOrigin;  // Allow React to call this API
-import org.springframework.web.bind.annotation.GetMapping;   // Handle GET requests
-import org.springframework.web.bind.annotation.RequestMapping; // Base URL for this controller
-import org.springframework.web.bind.annotation.RestController; // This is a REST API controller
-
-// Our service
-import com.shoplens.shoplensbackend.service.ShopService;
-
-// Our model
 import com.shoplens.shoplensbackend.model.AnalysisResult;
-
-// Spring's dependency injection
+import com.shoplens.shoplensbackend.service.ShopService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
-// Java list
 import java.util.List;
+import java.util.Map;
 
-// This annotation means:
-// "This class handles HTTP requests AND automatically converts return values to JSON"
 @RestController
+// @RestController = This class handles HTTP requests and returns JSON automatically
 
-// All URLs in this class will start with /api
-// So /health becomes /api/health
-// And /results becomes /api/results
 @RequestMapping("/api")
+// @RequestMapping("/api") = All endpoints in this class start with /api
 
-// CORS = Cross-Origin Resource Sharing
-// React runs on localhost:3000, Spring Boot runs on localhost:8080
-// By default browsers BLOCK requests between different ports (security feature)
-// @CrossOrigin says: "Allow requests from localhost:3000 (our React app)"
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "*")
+// @CrossOrigin = Allow requests from ANY domain (needed for React frontend later)
 
 public class ShopController {
 
-    // @Autowired tells Spring: "Find the ShopService object you already created
-    // and inject (insert) it here automatically"
-    // We don't write: ShopService service = new ShopService(); manually
-    // Spring handles object creation and sharing — this is called Dependency Injection
     @Autowired
+    // @Autowired = Spring automatically creates and injects the ShopService object here
     private ShopService shopService;
 
-    // This method handles: GET http://localhost:8080/api/health
-    // It returns a plain text string
+    // ── Endpoint 1: Health check (from Day 2) ──
     @GetMapping("/health")
-    public String healthCheck() {
-        // Call our service method and return the result
-        return shopService.getHealthStatus();
+    public ResponseEntity<String> health() {
+        return ResponseEntity.ok("ShopLens backend is running!");
     }
 
-    // This method handles: GET http://localhost:8080/api/results
-    // It returns a List<AnalysisResult> which Spring AUTOMATICALLY converts to JSON array
+    // ── Endpoint 2: Get results (from Day 2) ──
     @GetMapping("/results")
-    public List<AnalysisResult> getResults() {
-        // Call our service method which returns sample Apriori results
-        return shopService.getSampleResults();
+    public ResponseEntity<List<AnalysisResult>> getResults() {
+        return ResponseEntity.ok(shopService.getResults());
     }
 
+    // ── Endpoint 3: NEW — Upload CSV and analyze ──
+    @PostMapping("/upload")
+    // @PostMapping = This handles HTTP POST requests to /api/upload
 
+    public ResponseEntity<Map<String, Object>> uploadAndAnalyze(
+            @RequestParam("file") MultipartFile file) {
+        // @RequestParam("file") = Look for a form field named "file" in the request
+        // MultipartFile file = The actual uploaded file
 
-    // This method handles: GET http://localhost:8080/api/info
-    // Returns basic info about the application as a simple string
-    @GetMapping("/info")
-    public String getInfo() {
-        return "ShopLens v1.0 | Market Basket Analysis Platform | Built with Spring Boot + Python";
+        // ── Validation: Check if file is empty ──
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("success", false, "error", "Please upload a CSV file"));
+            // Map.of() = quick way to create a Map with key-value pairs
+            // ResponseEntity.badRequest() = returns HTTP 400 status
+        }
+
+        // ── Validation: Check file extension ──
+        String filename = file.getOriginalFilename();
+        if (filename == null || !filename.toLowerCase().endsWith(".csv")) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("success", false, "error", "Only CSV files are allowed"));
+        }
+
+        // ── Call the service to process the file ──
+        try {
+            Map<String, Object> result = shopService.analyzeFile(file);
+            // analyzeFile() does all the heavy lifting — saving file, calling Python, parsing output
+
+            return ResponseEntity.ok(result);
+            // ResponseEntity.ok() = returns HTTP 200 with the result as JSON
+
+        } catch (Exception e) {
+            // If anything goes wrong, return a 500 error with the message
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("success", false, "error", e.getMessage()));
+        }
     }
 }

@@ -1,35 +1,56 @@
 package com.shoplens.shoplensbackend.model;
 
-// Lombok annotations — these automatically generate getters, setters, constructors
-// Without Lombok you'd write 30+ lines of boring code manually
-import lombok.AllArgsConstructor;  // Generates constructor with ALL fields
-import lombok.Data;                 // Generates getters + setters + toString + equals
-import lombok.NoArgsConstructor;   // Generates empty constructor (needed by Spring/JSON)
+import java.util.List;
 
-@Data                    // Automatically creates: getItem1(), setItem1(), toString(), etc.
-@NoArgsConstructor       // Creates: public AnalysisResult() {}
-@AllArgsConstructor      // Creates: public AnalysisResult(String antecedent, ...)
+// This class represents ONE association rule
+// Example: {milk} → {bread} with support=0.05, confidence=0.8, lift=2.1
 public class AnalysisResult {
 
-    // antecedent = the "if" part of the rule
-    // Example: if customer buys "ghee" → antecedent is "ghee"
-    private String antecedent;
+    // "antecedents" = the LEFT side of the rule — items the customer already has
+    private List<String> antecedents;
 
-    // consequent = the "then" part of the rule
-    // Example: → they also buy "rice" → consequent is "rice"
-    private String consequent;
+    // "consequents" = the RIGHT side — items we recommend
+    private List<String> consequents;
 
-    // confidence = how often this rule is correct
-    // Example: 0.92 means 92% of the time when ghee is bought, rice is also bought
-    private double confidence;
-
-    // support = how often both items appear together in ALL transactions
-    // Example: 0.45 means 45% of all bills contain both items
+    // "support" = how often this combination appears in ALL transactions
     private double support;
 
-    // lift = how much MORE likely they are bought together vs randomly
-    // lift > 1 means positive association (good!)
-    // lift = 1 means no relationship
-    // lift < 1 means negative association
+    // "confidence" = given antecedents, how often do consequents appear too
+    private double confidence;
+
+    // "lift" = how much better than random chance (lift > 1 means meaningful)
     private double lift;
+
+    // ── Constructors ──
+
+    // Empty constructor — Spring needs this to create objects automatically
+    public AnalysisResult() {}
+
+    // Full constructor — used when we create objects manually
+    public AnalysisResult(List<String> antecedents, List<String> consequents,
+                          double support, double confidence, double lift) {
+        this.antecedents = antecedents;
+        this.consequents = consequents;
+        this.support = support;
+        this.confidence = confidence;
+        this.lift = lift;
+    }
+
+    // ── Getters and Setters ──
+    // Spring Boot uses these to convert Java objects to JSON automatically
+
+    public List<String> getAntecedents() { return antecedents; }
+    public void setAntecedents(List<String> antecedents) { this.antecedents = antecedents; }
+
+    public List<String> getConsequents() { return consequents; }
+    public void setConsequents(List<String> consequents) { this.consequents = consequents; }
+
+    public double getSupport() { return support; }
+    public void setSupport(double support) { this.support = support; }
+
+    public double getConfidence() { return confidence; }
+    public void setConfidence(double confidence) { this.confidence = confidence; }
+
+    public double getLift() { return lift; }
+    public void setLift(double lift) { this.lift = lift; }
 }
