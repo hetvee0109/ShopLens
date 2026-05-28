@@ -1,3 +1,4 @@
+---------DAY 1----------
 Easy level:
 
 What is Market Basket Analysis?
@@ -11,3 +12,52 @@ Why did you choose min_support=0.15?
 What happens if you set support too low or too high?
 What is a TransactionEncoder and why do you need it?
 Difference between support and confidence?
+
+
+---------DAY 2----------
+Q1. What is Spring Boot and how is it different from Spring Framework?
+
+Spring Framework requires lots of manual XML configuration. Spring Boot uses auto-configuration — it detects what's on your classpath and sets things up automatically. Spring Boot also includes an embedded Tomcat server so you don't need to deploy WAR files separately.
+
+
+Q2. What does @RestController do? How is it different from @Controller?
+
+@Controller is used for MVC web apps that return HTML views. @RestController = @Controller + @ResponseBody — it automatically serializes (converts) Java objects to JSON and writes them directly to the HTTP response. Use @RestController for REST APIs.
+
+
+Q3. What is Dependency Injection and why does Spring use it?
+
+Instead of creating objects manually (new ShopService()), Spring creates and manages objects (called beans) and injects them where needed via @Autowired. This makes code loosely coupled — your Controller doesn't need to know HOW ShopService is created, just that it exists. Makes testing and maintenance easier.
+
+
+Q4. What is pom.xml in Maven?
+
+pom.xml (Project Object Model) is the configuration file for Maven. It defines project identity (groupId, artifactId), Java version, and most importantly — dependencies (external libraries). Maven reads this file and automatically downloads all required JARs from the internet (from Maven Central repository).
+
+
+Q5. Why do we need @CrossOrigin?
+
+Browsers enforce Same-Origin Policy — they block JavaScript on localhost:3000 from making API calls to localhost:8080 because the ports differ. @CrossOrigin(origins = "http://localhost:3000") adds an HTTP header (Access-Control-Allow-Origin) to the response telling the browser: "Yes, this origin is allowed." Without this, our React app would get a CORS error.
+
+
+Q6. What is the difference between @GetMapping and @PostMapping?
+
+@GetMapping handles HTTP GET requests — used to read/fetch data. @PostMapping handles HTTP POST requests — used to send/create data. GET requests have no body; POST requests carry data in the request body (like a CSV file or JSON data).
+
+
+Q7. What are the 3 layers we created and why?
+
+Controller — Handles incoming HTTP requests and outgoing responses (like a receptionist). Service — Contains all business logic (like the actual worker). Model — Defines the data structure/shape (like a blueprint). This is called Separation of Concerns — each layer has one responsibility, making the code easier to maintain and test.
+
+
+-----------DAY 3-----------
+Q1: What is MultipartFile in Spring Boot?
+It's an interface that represents a file uploaded via an HTTP multipart request. It gives methods like getInputStream(), getOriginalFilename(), and isEmpty() to work with the uploaded file.
+Q2: What is ProcessBuilder and why use it over Runtime.exec()?
+ProcessBuilder is the modern way to run external processes in Java. Unlike Runtime.exec(), it lets you configure the environment, redirect error streams, and set working directories more cleanly.
+Q3: Why do we save the MultipartFile to a temp file before passing to Python?
+MultipartFile is an in-memory/stream object — it doesn't exist as a physical file on disk. Python's open() function needs an actual file path, so we must write it to disk first.
+Q4: What does process.waitFor() do?
+It blocks the Java thread until the external process (Python) completes. Without it, Java might try to read output before Python has finished writing it.
+Q5: Why use redirectErrorStream(true)?
+It merges Python's stderr (error output) into stdout (normal output) so we can read both from one stream. Without it, if Python crashes, Java would see empty output and miss the error message.
