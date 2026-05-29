@@ -8,71 +8,83 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
-// @RestController = This class handles HTTP requests and returns JSON automatically
+// @RestController = every method returns JSON data, not HTML
+// Combines @Controller + @ResponseBody
 
 @RequestMapping("/api")
-// @RequestMapping("/api") = All endpoints in this class start with /api
+// All routes in this class start with /api
+// /upload → /api/upload
+// /history → /api/history
 
 @CrossOrigin(origins = "*")
-// @CrossOrigin = Allow requests from ANY domain (needed for React frontend later)
+// Allows React frontend (port 3000) to call this backend (port 8080)
+// Without this, browser blocks the request due to CORS security policy
 
 public class ShopController {
 
     @Autowired
-    // @Autowired = Spring automatically creates and injects the ShopService object here
+    // Spring automatically creates and injects ShopService here
+    // You never write: ShopService shopService = new ShopService();
+    // Spring does that for you — this is called Dependency Injection
     private ShopService shopService;
 
-    // ── Endpoint 1: Health check (from Day 2) ──
-    @GetMapping("/health")
-    public ResponseEntity<String> health() {
-        return ResponseEntity.ok("ShopLens backend is running!");
-    }
-
-    // ── Endpoint 2: Get results (from Day 2) ──
-    @GetMapping("/results")
-    public ResponseEntity<List<AnalysisResult>> getResults() {
-        return ResponseEntity.ok(shopService.getResults());
-    }
-
-    // ── Endpoint 3: NEW — Upload CSV and analyze ──
+    // ── POST /api/upload ────────────────────────────────────────
     @PostMapping("/upload")
-    // @PostMapping = This handles HTTP POST requests to /api/upload
-
-    public ResponseEntity<Map<String, Object>> uploadAndAnalyze(
-            @RequestParam("file") MultipartFile file) {
-        // @RequestParam("file") = Look for a form field named "file" in the request
-        // MultipartFile file = The actual uploaded file
-
-        // ── Validation: Check if file is empty ──
-        if (file.isEmpty()) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "error", "Please upload a CSV file"));
-            // Map.of() = quick way to create a Map with key-value pairs
-            // ResponseEntity.badRequest() = returns HTTP 400 status
-        }
-
-        // ── Validation: Check file extension ──
-        String filename = file.getOriginalFilename();
-        if (filename == null || !filename.toLowerCase().endsWith(".csv")) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("success", false, "error", "Only CSV files are allowed"));
-        }
-
-        // ── Call the service to process the file ──
+    // Handles HTTP POST requests sent to http://localhost:8080/api/upload
+    public ResponseEntity<List<AnalysisResult>> uploadFile(
+            @RequestPart("file") MultipartFile file
+            // @RequestPart("file") = grab the file from the multipart form body
+            // "file" must match the Key name you set in Postman form-data
+    ) {
         try {
-            Map<String, Object> result = shopService.analyzeFile(file);
-            // analyzeFile() does all the heavy lifting — saving file, calling Python, parsing output
+            List<AnalysisResult> results = shopService.runAnalysis(file);
+            // 1. Saves CSV to disk temporarily
+            // 2. Runs Python apriori_runner.py
+            // 3. Parses JSON output from Python
+            // 4. Saves each rule to MySQL
+            // 5. Returns the saved list
 
-            return ResponseEntity.ok(result);
-            // ResponseEntity.ok() = returns HTTP 200 with the result as JSON
+            return ResponseEntity.ok(results);
+            // HTTP 200 + results as JSON array in response body
 
         } catch (Exception e) {
-            // If anything goes wrong, return a 500 error with the message
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("success", false, "error", e.getMessage()));
+            // Print the full error stack trace in IntelliJ console
+            // This helps you see exactly which line caused the crash
+            e.printStackTrace();
+
+            // Also send the error message back to Postman so you can read it
+            // This is much better than an empty 500 response
+            System.out.println("UPLOAD ERROR: " + e.getMessage());
+
+            return ResponseEntity.internalServerError().build();
+            // HTTP 500 — something crashed on the server side
+        }
+    }
+
+    // ── GET /api/history ───────────────────────────────────────
+    @GetMapping("/history")
+    // Handles HTTP GET requests sent to http://localhost:8080/api/history
+    // No request body needed — just call the URL and get all past results
+    public ResponseEntity<List<AnalysisResult>> getHistory() {
+
+        try {
+            List<AnalysisResult> results = shopService.getAllResults();
+            // Calls repository.findAll()
+            // Hibernate generates: SELECT * FROM analysis_results
+            // Returns every saved row as a List of Java objects
+            // Spring converts that List to a JSON array automatically
+
+            return ResponseEntity.ok(results);
+            // HTTP 200 + all rows as JSON array
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Print error in IntelliJ console if DB query fails
+
+            return ResponseEntity.internalServerError().build();
+            // HTTP 500 if something goes wrong reading from MySQL
         }
     }
 }

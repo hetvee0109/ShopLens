@@ -60,4 +60,27 @@ MultipartFile is an in-memory/stream object — it doesn't exist as a physical f
 Q4: What does process.waitFor() do?
 It blocks the Java thread until the external process (Python) completes. Without it, Java might try to read output before Python has finished writing it.
 Q5: Why use redirectErrorStream(true)?
-It merges Python's stderr (error output) into stdout (normal output) so we can read both from one stream. Without it, if Python crashes, Java would see empty output and miss the error message.
+It merges Python's stderr (error output) into stdout (normal output) so we can read both from one stream. Without it, if Python crashes, Java would see empty output and miss the error message.  
+
+
+-------------DAY 4----------------
+Q1: What is the difference between JPA and Hibernate?
+JPA is a specification — a set of rules and interfaces written by Java that define how a Java ORM (Object Relational Mapper) should work. Hibernate is a framework that implements those rules. Think of JPA as a job description and Hibernate as the employee doing the actual work. You write code against JPA interfaces, and Hibernate executes the real SQL behind the scenes.
+
+Q2: What does @Entity do?
+It marks a Java class as a database entity, meaning Hibernate should map it to a table. Without @Entity, Hibernate ignores the class. With it, every field becomes a column, every instance becomes a row, and operations like .save() translate to SQL INSERT statements.
+
+Q3: What is Dependency Injection and why does Spring use @Autowired?
+Dependency Injection means instead of creating your own objects with new, you declare what you need and a framework provides it. @Autowired tells Spring: "I need an instance of this type — please create one and inject it here." This decouples classes from each other and makes code easier to test and maintain.
+
+Q4: What is the difference between save() and findAll() in a JPA Repository?
+save(entity) performs a write operation — INSERT if the entity has no id yet, UPDATE if it already has one. findAll() performs a read — it generates SELECT * FROM table and maps each row back to a Java object. Both are provided for free by extending JpaRepository.
+
+Q5: Why do we use @PrePersist?
+@PrePersist is a lifecycle callback that fires automatically just before an entity is saved to the database for the first time. It's perfect for setting fields that should always be auto-populated — like createdAt timestamps — so you never accidentally forget to set them before calling .save().
+
+Q6: What is ddl-auto=update and is it safe for production?
+ddl-auto=update tells Hibernate to automatically modify the database schema to match your entity classes — creating tables and adding columns as needed. It's convenient for development but not recommended for production because it can make unexpected schema changes. In production, you'd use ddl-auto=none and manage migrations with a dedicated tool like Flyway or Liquibase.
+
+Q7: What does @CrossOrigin do and why is it needed?
+@CrossOrigin configures CORS — Cross-Origin Resource Sharing. Browsers block JavaScript on one domain (e.g. localhost:3000) from calling APIs on another domain (e.g. localhost:8080) as a security measure. @CrossOrigin(origins = "*") tells the backend to include headers in its response that tell the browser "this is allowed." Without it, your React frontend would get a CORS error when calling the Spring Boot API.
