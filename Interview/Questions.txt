@@ -83,4 +83,21 @@ Q6: What is ddl-auto=update and is it safe for production?
 ddl-auto=update tells Hibernate to automatically modify the database schema to match your entity classes — creating tables and adding columns as needed. It's convenient for development but not recommended for production because it can make unexpected schema changes. In production, you'd use ddl-auto=none and manage migrations with a dedicated tool like Flyway or Liquibase.
 
 Q7: What does @CrossOrigin do and why is it needed?
-@CrossOrigin configures CORS — Cross-Origin Resource Sharing. Browsers block JavaScript on one domain (e.g. localhost:3000) from calling APIs on another domain (e.g. localhost:8080) as a security measure. @CrossOrigin(origins = "*") tells the backend to include headers in its response that tell the browser "this is allowed." Without it, your React frontend would get a CORS error when calling the Spring Boot API.
+@CrossOrigin configures CORS — Cross-Origin Resource Sharing. Browsers block JavaScript on one domain (e.g. localhost:3000) from calling APIs on another domain (e.g. localhost:8080) as a security measure. @CrossOrigin(origins = "*") tells the backend to include headers in its response that tell the browser "this is allowed." Without it, your React frontend would get a CORS error when calling the Spring Boot API.   
+
+
+---------DAY 5----------------
+Q1: What is the difference between state and props in React?
+State is data owned and managed by a component itself — it can change, and when it does, React re-renders the component. Props are data passed into a component from its parent — the child reads them but cannot change them. A rule of thumb: state is internal, props come from outside.
+Q2: Why do we need the dependency array in useEffect?
+The dependency array tells React when to re-run the effect. An empty array [] means "run once after the first render." If you omit it entirely, the effect runs after every render, which can cause infinite loops if the effect itself updates state. If you put a variable in it like [userId], the effect re-runs whenever userId changes.
+Q3: Why must you never modify state directly in React?
+React's rendering system only triggers a re-render when you call the setter function (like setRules). If you write rules.push(newRule) directly, the array in memory changes but React doesn't know about it and the UI stays stale. The setter function tells React "something changed, please recalculate what to show."
+Q4: What is CORS and why does your app need it?
+CORS is a browser security feature that blocks JavaScript on one origin (protocol + domain + port) from making HTTP requests to a different origin. React on localhost:5173 and Spring Boot on localhost:8080 are different origins because the ports differ. The backend must send CORS headers (Access-Control-Allow-Origin) to tell the browser the request is permitted. The @CrossOrigin annotation in Spring Boot does this automatically.
+Q5: What is FormData and why do you use it for file uploads?
+FormData is a browser API that constructs a multipart/form-data request body — the standard format for sending files over HTTP. Regular JSON (application/json) can only carry text. multipart/form-data can carry binary file data alongside text fields. Spring Boot's @RequestParam MultipartFile is designed to receive exactly this format.
+Q6: What does async/await do and how is it different from .then()?
+Both handle Promises (asynchronous operations that return a value later). .then() chains callbacks. async/await lets you write asynchronous code that looks synchronous — await pauses execution in that function until the Promise resolves. async/await is generally cleaner and easier to read, especially when you have multiple sequential async operations or need try/catch error handling.
+Q7: Why does React require a key prop when rendering lists?
+When React re-renders a list, it needs to know which items changed, were added, or were removed — so it can update only those DOM nodes instead of re-rendering everything. The key prop is a stable identifier React uses to match old list items to new ones. Without it, React either throws a warning or makes incorrect DOM updates.
