@@ -101,3 +101,77 @@ Q6: What does async/await do and how is it different from .then()?
 Both handle Promises (asynchronous operations that return a value later). .then() chains callbacks. async/await lets you write asynchronous code that looks synchronous — await pauses execution in that function until the Promise resolves. async/await is generally cleaner and easier to read, especially when you have multiple sequential async operations or need try/catch error handling.
 Q7: Why does React require a key prop when rendering lists?
 When React re-renders a list, it needs to know which items changed, were added, or were removed — so it can update only those DOM nodes instead of re-rendering everything. The key prop is a stable identifier React uses to match old list items to new ones. Without it, React either throws a warning or makes incorrect DOM updates.
+
+
+-------------DAY 6----------------
+Q1: What is multi-tenancy and how are you implementing it in ShopLens?
+Multi-tenancy means multiple independent users ("tenants") share the same application and database, but each sees only their own data.
+In ShopLens, you implement it at the service layer:
+
+Every table has an owner_id column
+Every owner query filters by WHERE owner_id = ?
+No owner can ever request another owner's ownerId without being blocked
+
+This is called row-level security — the data isolation is enforced by always filtering queries, not by having separate databases.
+
+Q2: What is RBAC (Role-Based Access Control)?
+RBAC means you assign permissions to roles, not to individual users. Then each user gets a role.
+In your system:
+
+Role OWNER can: upload CSV, view own data, manage own inventory
+Role ADMIN can: view all data, deactivate accounts, delete owners
+
+Benefits over individual permissions:
+
+If you add a new endpoint, you only decide "is this OWNER or ADMIN?" — not "which of the 500 owners can access this?"
+Easy to add new roles later (e.g., VIEWER who can see but not upload)
+
+
+Q3: What is the difference between @ManyToOne and @OneToMany?
+@ManyToOne → on the "many" side (the child)
+@OneToMany → on the "one" side (the parent)
+In your code, AnalysisResult has @ManyToOne Owner owner because:
+
+One owner → many analysis results
+Each analysis result → one owner
+
+You could add @OneToMany on the Owner entity too (a list of all their results), but you didn't — and that's fine. You don't always need both sides mapped.
+
+Q4: Why use FetchType.LAZY instead of EAGER?
+java@ManyToOne(fetch = FetchType.LAZY)  // only load Owner when you call .getOwner()
+@ManyToOne(fetch = FetchType.EAGER) // always load Owner automatically with every query
+EAGER is dangerous because:
+
+You query analysisResultRepository.findByOwnerId(5) — gets 200 rows
+Each row EAGERLY loads its Owner
+That's 200 extra SQL queries running silently — called the N+1 problem
+Your app slows down massively
+
+LAZY means: only load the Owner object when the code explicitly calls result.getOwner(). If you never call it, no extra query runs.
+
+Q5: Why do you delete child records before deleting the parent in deleteOwner()?
+Because MySQL enforces foreign key constraints. The analysis_results table has:
+sqlFOREIGN KEY (owner_id) REFERENCES owners(id)
+If you try to delete an Owner row while analysis_results rows still reference it, MySQL throws:
+Cannot delete or update a parent row: a foreign key constraint fails
+You must delete all child rows first (results, inventory, discounts, etc.) then delete the parent (owner). This is manual cascade delete — in Day 7 you'll learn how to do this automatically with @OneToMany(cascade = CascadeType.ALL).
+
+Q6: Why is EnumType.STRING better than EnumType.ORDINAL?
+ORDINAL stores the position: ADMIN=0, OWNER=1.
+If a new developer adds a role in the middle:
+javapublic enum Role { ADMIN, SUPERUSER, OWNER }
+// Now OWNER = 2, but the database still has 1 stored for old owners
+// All existing OWNER accounts are now SUPERUSER — catastrophic data corruption
+STRING stores "ADMIN" and "OWNER" as text. Adding SUPERUSER in the middle doesn't affect any existing data. Always use STRING.
+
+Q7: What is the N+1 query problem?
+If you load 100 AnalysisResult rows with EAGER fetch, JPA runs:
+
+1 query to get all 100 results
+100 separate queries to load the Owner for each result
+
+That's 1 + 100 = 101 queries when you only needed 1 or 2. This is the N+1 problem.
+Solutions:
+
+Use FetchType.LAZY (your current approach — good for Day 6)
+Use @Query with JOIN FETCH to load both in one query 

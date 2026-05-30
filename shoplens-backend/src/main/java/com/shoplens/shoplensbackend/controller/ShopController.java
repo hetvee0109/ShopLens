@@ -1,6 +1,6 @@
 package com.shoplens.shoplensbackend.controller;
 
-import com.shoplens.shoplensbackend.model.AnalysisResult;
+import com.shoplens.shoplensbackend.model.*;
 import com.shoplens.shoplensbackend.service.ShopService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -10,81 +10,127 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
-// @RestController = every method returns JSON data, not HTML
-// Combines @Controller + @ResponseBody
+// @RestController = @Controller + @ResponseBody
+// Every method returns JSON automatically
 
 @RequestMapping("/api")
-// All routes in this class start with /api
-// /upload → /api/upload
-// /history → /api/history
+// All endpoints in this controller start with /api
 
-@CrossOrigin(origins = "*")
-// Allows React frontend (port 3000) to call this backend (port 8080)
-// Without this, browser blocks the request due to CORS security policy
-
+@CrossOrigin(origins = "http://localhost:3000")
+// Allow React dev server to call this API
 public class ShopController {
 
     @Autowired
-    // Spring automatically creates and injects ShopService here
-    // You never write: ShopService shopService = new ShopService();
-    // Spring does that for you — this is called Dependency Injection
     private ShopService shopService;
 
-    // ── POST /api/upload ────────────────────────────────────────
+    // ------------------------------------------------------------------
+    // POST /api/upload
+    // Owner uploads a CSV for analysis
+    // Params: file (the CSV), ownerId, month, year
+    // ------------------------------------------------------------------
     @PostMapping("/upload")
-    // Handles HTTP POST requests sent to http://localhost:8080/api/upload
-    public ResponseEntity<List<AnalysisResult>> uploadFile(
-            @RequestPart("file") MultipartFile file
-            // @RequestPart("file") = grab the file from the multipart form body
-            // "file" must match the Key name you set in Postman form-data
-    ) {
-        try {
-            List<AnalysisResult> results = shopService.runAnalysis(file);
-            // 1. Saves CSV to disk temporarily
-            // 2. Runs Python apriori_runner.py
-            // 3. Parses JSON output from Python
-            // 4. Saves each rule to MySQL
-            // 5. Returns the saved list
+    public ResponseEntity<?> uploadFile(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("ownerId") long ownerId,
+            @RequestParam("month") int month,
+            @RequestParam("year") int year) {
 
+        // Basic validation — did they actually send a file?
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body("Please select a file to upload");
+        }
+
+        try {
+            List<AnalysisResult> results =
+                    shopService.analyzeFile(file, ownerId, month, year);
             return ResponseEntity.ok(results);
-            // HTTP 200 + results as JSON array in response body
+            // 200 OK with JSON array of rules
 
         } catch (Exception e) {
-            // Print the full error stack trace in IntelliJ console
-            // This helps you see exactly which line caused the crash
-            e.printStackTrace();
-
-            // Also send the error message back to Postman so you can read it
-            // This is much better than an empty 500 response
-            System.out.println("UPLOAD ERROR: " + e.getMessage());
-
-            return ResponseEntity.internalServerError().build();
-            // HTTP 500 — something crashed on the server side
+            return ResponseEntity.internalServerError()
+                    .body("Analysis failed: " + e.getMessage());
+            // 500 Internal Server Error
         }
     }
 
-    // ── GET /api/history ───────────────────────────────────────
-    @GetMapping("/history")
-    // Handles HTTP GET requests sent to http://localhost:8080/api/history
-    // No request body needed — just call the URL and get all past results
-    public ResponseEntity<List<AnalysisResult>> getHistory() {
+    // ------------------------------------------------------------------
+    // GET /api/history/{ownerId}
+    // Get ALL analysis results for one owner across all months
+    // ------------------------------------------------------------------
+    @GetMapping("/history/{ownerId}")
+    public ResponseEntity<List<AnalysisResult>> getHistory(
+            @PathVariable long ownerId) {
+        // @PathVariable extracts {ownerId} from the URL
 
-        try {
-            List<AnalysisResult> results = shopService.getAllResults();
-            // Calls repository.findAll()
-            // Hibernate generates: SELECT * FROM analysis_results
-            // Returns every saved row as a List of Java objects
-            // Spring converts that List to a JSON array automatically
+        List<AnalysisResult> history = shopService.getHistoryByOwner(ownerId);
+        return ResponseEntity.ok(history);
+    }
 
-            return ResponseEntity.ok(results);
-            // HTTP 200 + all rows as JSON array
+    // ------------------------------------------------------------------
+    // GET /api/history/{ownerId}/{month}/{year}
+    // Get results for one owner for a specific month
+    // ------------------------------------------------------------------
+    @GetMapping("/history/{ownerId}/{month}/{year}")
+    public ResponseEntity<List<AnalysisResult>> getHistoryByMonth(
+            @PathVariable long ownerId,
+            @PathVariable int month,
+            @PathVariable int year) {
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            // Print error in IntelliJ console if DB query fails
+        List<AnalysisResult> history =
+                shopService.getHistoryByOwnerAndMonth(ownerId, month, year);
+        return ResponseEntity.ok(history);
+    }
 
-            return ResponseEntity.internalServerError().build();
-            // HTTP 500 if something goes wrong reading from MySQL
-        }
+    // ------------------------------------------------------------------
+    // GET /api/inventory/{ownerId}
+    // Get all inventory items for one owner
+    // ------------------------------------------------------------------
+    @GetMapping("/inventory/{ownerId}")
+    public ResponseEntity<List<Inventory>> getInventory(
+            @PathVariable long ownerId) {
+
+        List<Inventory> inventory = shopService.getInventory(ownerId);
+        return ResponseEntity.ok(inventory);
+    }
+
+    // ------------------------------------------------------------------
+    // POST /api/inventory/{ownerId}
+    // Add or update an inventory item
+    // ------------------------------------------------------------------
+    @PostMapping("/inventory/{ownerId}")
+    public ResponseEntity<Inventory> saveInventory(
+            @PathVariable long ownerId,
+            @RequestBody Inventory item) {
+        // @RequestBody parses the JSON request body into an Inventory object
+
+        Inventory saved = shopService.saveOrUpdateInventory(ownerId, item);
+        return ResponseEntity.ok(saved);
+    }
+
+    // ------------------------------------------------------------------
+    // GET /api/discounts/{ownerId}/{month}/{year}
+    // Get discount suggestions for one owner for a specific month
+    // ------------------------------------------------------------------
+    @GetMapping("/discounts/{ownerId}/{month}/{year}")
+    public ResponseEntity<List<DiscountSuggestion>> getDiscounts(
+            @PathVariable long ownerId,
+            @PathVariable int month,
+            @PathVariable int year) {
+
+        List<DiscountSuggestion> discounts =
+                shopService.getDiscountSuggestions(ownerId, month, year);
+        return ResponseEntity.ok(discounts);
+    }
+
+    // ------------------------------------------------------------------
+    // GET /api/summary/{ownerId}
+    // Get all monthly summaries for one owner
+    // ------------------------------------------------------------------
+    @GetMapping("/summary/{ownerId}")
+    public ResponseEntity<List<MonthlySummary>> getSummaries(
+            @PathVariable long ownerId) {
+
+        List<MonthlySummary> summaries = shopService.getMonthlySummaries(ownerId);
+        return ResponseEntity.ok(summaries);
     }
 }

@@ -1,74 +1,58 @@
 package com.shoplens.shoplensbackend.model;
 
-// JPA annotations — these tell Hibernate how to map this class to MySQL
 import jakarta.persistence.*;
 
-// For the timestamp column — records when each analysis was run
-import java.time.LocalDateTime;
-
 @Entity
-// @Entity tells Hibernate: "This class = a database table"
-
 @Table(name = "analysis_results")
-// @Table tells Hibernate: "Name the table 'analysis_results' in MySQL"
-// Without this, Hibernate would name it 'AnalysisResult' (class name)
-
 public class AnalysisResult {
 
     @Id
-    // @Id marks this field as the PRIMARY KEY of the table
-    // Primary key = unique identifier for each row (like a row number)
-
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    // @GeneratedValue tells MySQL to auto-increment this number
-    // So first row gets id=1, second gets id=2, etc.
-    // You never need to set this yourself — MySQL handles it
     private Long id;
 
-    @Column(name = "antecedents", columnDefinition = "TEXT")
-    // @Column lets you customize the column name and type
-    // TEXT = can store long strings (longer than VARCHAR's 255 limit)
-    // antecedents = the "if" part of the rule, e.g. "bread, butter"
+    // NEW: Many analysis results belong to one Owner
+    // @ManyToOne = "many of these rows → one owner"
+    // @JoinColumn = the foreign key column in THIS table is "owner_id"
+    // fetch = LAZY means JPA won't auto-load the Owner object unless you ask for it
+    // This prevents accidentally loading ALL owner data on every query
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id", nullable = false)
+    private Owner owner;
+
+    @Column(name = "antecedents")
     private String antecedents;
+    // Example: "Bread, Butter"
 
     @Column(name = "consequents")
-    // consequents = the "then" part of the rule, e.g. "milk"
     private String consequents;
+    // Example: "Jam"
 
     @Column(name = "support")
-    // support = fraction of all transactions that contain this rule
-    // e.g. 0.4 means 40% of all orders had these items together
     private Double support;
 
     @Column(name = "confidence")
-    // confidence = how often the rule is correct
-    // e.g. 0.8 means when antecedent is bought, consequent bought 80% of time
     private Double confidence;
 
     @Column(name = "lift")
-    // lift = how much better than random chance this rule is
-    // lift > 1 means the items are genuinely associated
     private Double lift;
 
-    @Column(name = "created_at")
-    // created_at = timestamp of when this analysis was saved
-    private LocalDateTime createdAt;
+    // NEW: Which month and year this analysis covers
+    @Column(name = "month", nullable = false)
+    private Integer month;
 
-    // ── Constructor called before saving to DB ──────────────
-    @PrePersist
-    // @PrePersist = "run this method automatically just before saving to MySQL"
-    // This ensures createdAt is always filled in — you never forget to set it
-    public void prePersist() {
-        this.createdAt = LocalDateTime.now();
-        // LocalDateTime.now() = current date and time on your system
-    }
+    @Column(name = "year", nullable = false)
+    private Integer year;
 
-    // ── Getters and Setters ──────────────────────────────────
-    // Getters = methods to READ the value of a private field
-    // Setters = methods to WRITE/change the value of a private field
-    // Spring needs these to serialize/deserialize JSON automatically
+    // Default constructor
+    public AnalysisResult() {}
+
+    // --- Getters and Setters ---
 
     public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Owner getOwner() { return owner; }
+    public void setOwner(Owner owner) { this.owner = owner; }
 
     public String getAntecedents() { return antecedents; }
     public void setAntecedents(String antecedents) { this.antecedents = antecedents; }
@@ -85,6 +69,9 @@ public class AnalysisResult {
     public Double getLift() { return lift; }
     public void setLift(Double lift) { this.lift = lift; }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public Integer getMonth() { return month; }
+    public void setMonth(Integer month) { this.month = month; }
+
+    public Integer getYear() { return year; }
+    public void setYear(Integer year) { this.year = year; }
 }
